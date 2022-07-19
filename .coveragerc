@@ -1,0 +1,17 @@
+[paths]
+source =
+    dhos_rules_api/*
+
+[report]
+
+omit =
+    **/__init__.py
+    **/__main__.py
+    dhos_rules_api/app.py
+    dhos_rules_api/autoapp.py
+    dhos_rules_api/config.py
+
+fail_under = 95
+
+show_missing = true
+skip_covered = true

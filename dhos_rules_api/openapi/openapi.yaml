@@ -1,0 +1,646 @@
+openapi: 3.0.3
+info:
+  description: The DHOS Rules API is responsible for scoring observation sets and
+    blood glucose readings using defined rules.
+  title: DHOS Rules API
+  version: 1.0.0
+paths:
+  /running:
+    get:
+      summary: Verify service is running
+      description: Verifies that the service is running. Used for monitoring in kubernetes.
+      tags:
+      - monitoring
+      responses:
+        '200':
+          description: If we respond, we are running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  running:
+                    type: boolean
+                    example: true
+      operationId: flask_batteries_included.blueprint_monitoring.app_running
+  /version:
+    get:
+      summary: Get version information
+      description: Get the version number, circleci build number, and git hash.
+      tags:
+      - monitoring
+      responses:
+        '200':
+          description: Version numbers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  circle:
+                    type: string
+                    example: '1234'
+                  hash:
+                    type: string
+                    example: 366c204
+      operationId: flask_batteries_included.blueprint_monitoring.app_version
+  /dhos/v1/score_observation_set:
+    post:
+      summary: Compute scores for an observation set
+      description: Input is an observation set to be score, result is the same observation
+        set with scores added.
+      tags:
+      - send-scores
+      requestBody:
+        description: 'JSON body of observations contained in the current set. Note:
+          Additional fields may be present and will be returned in the result'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnscoredObservationSetSchema'
+              x-body-name: observation_set
+      responses:
+        '200':
+          description: JSON body of observations contained in the current set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoredObservationSetSchema'
+        default:
+          description: Error, e.g. 400 Bad Request, 503 Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: dhos_rules_api.blueprint_api.score_observation_set
+      security:
+      - bearerAuth: []
+  /dhos/v1/score_blood_glucose_reading:
+    post:
+      summary: Compute banding id from Blood Glucose and Prandial Tag
+      tags:
+      - gdm-scores
+      requestBody:
+        description: JSON body of current blood glucose reading
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BloodGlucoseBandingRequest'
+              x-body-name: bg_reading
+      responses:
+        '200':
+          description: Blood glucose reading banded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BloodGlucoseBanding'
+        default:
+          description: Error, e.g. 400 Bad Request, 503 Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: dhos_rules_api.blueprint_api.score_blood_glucose_reading
+      security:
+      - bearerAuth: []
+  /dhos/v2/score_blood_glucose_reading:
+    post:
+      summary: Compute banding id from Blood Glucose and Prandial Tag
+      tags:
+      - gdm-scores
+      requestBody:
+        description: Score blood glucose reading request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BloodGlucoseBandingRequestV2'
+              x-body-name: bg_reading
+      responses:
+        '200':
+          description: Blood glucose reading banded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BloodGlucoseBanding'
+        default:
+          description: Error, e.g. 400 Bad Request, 503 Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: dhos_rules_api.blueprint_api.score_blood_glucose_reading_v2
+      security:
+      - bearerAuth: []
+  /dhos/v1/rule_definition/{filename}:
+    get:
+      summary: Retrieve rules Javascript to run scoring in the browser
+      description: Returns a compressed javascript module that contains a scoring
+        engine.
+      tags:
+      - rules
+      parameters:
+      - in: path
+        name: filename
+        required: true
+        description: Filename to retrieve
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Returns a javascript scoring engine
+          content:
+            application/json:
+              schema:
+                type: string
+                example: '... some compressed javascript ...'
+        default:
+          description: Error, e.g. 404 Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      operationId: dhos_rules_api.blueprint_api.retrieve_rule_definition
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP response code
+          example: 404
+        message:
+          type: string
+          description: Message attached to response
+          example: Not Found
+      required:
+      - code
+      description: An error response in json format
+    RuleDefinitionParameter:
+      type: object
+      properties:
+        filename:
+          type: string
+          description: Filename to retrieve
+      required:
+      - filename
+    BloodGlucoseBandingRequest:
+      type: object
+      properties:
+        blood_glucose_value:
+          type: number
+          example: 22
+          description: Value of the blood glucose reading
+        prandial_tag_id:
+          type: string
+          example: PRANDIAL-TAG-BEFORE-BREAKFAST
+          description: Prandial tag for this reading
+      required:
+      - blood_glucose_value
+      - prandial_tag_id
+      title: Blood Glucose Reading
+    HighLow:
+      type: object
+      properties:
+        high:
+          type: number
+        low:
+          type: number
+      required:
+      - high
+      - low
+      title: High and low thresholds
+    BloodGlucoseThresholds:
+      type: object
+      properties:
+        OTHER:
+          example:
+            high: 7.8
+            low: 4.0
+          allOf:
+          - $ref: '#/components/schemas/HighLow'
+        BEFORE-BREAKFAST:
+          example:
+            high: 7.8
+            low: 4.0
+          allOf:
+          - $ref: '#/components/schemas/HighLow'
+        AFTER-BREAKFAST:
+          example:
+            high: 7.8
+            low: 4.0
+          allOf:
+          - $ref: '#/components/schemas/HighLow'
+        BEFORE-LUNCH:
+          example:
+            high: 7.8
+            low: 4.0
+          allOf:
+          - $ref: '#/components/schemas/HighLow'
+        AFTER-LUNCH:
+          example:
+            high: 7.8
+            low: 4.0
+          allOf:
+          - $ref: '#/components/schemas/HighLow'
+        BEFORE-DINNER:
+          example:
+            high: 7.8
+            low: 4.0
+          allOf:
+          - $ref: '#/components/schemas/HighLow'
+        AFTER-DINNER:
+          example:
+            high: 7.8
+            low: 4.0
+          allOf:
+          - $ref: '#/components/schemas/HighLow'
+      required:
+      - OTHER
+      title: Blood Glucose Thresholds
+    BloodGlucoseBandingRequestV2:
+      type: object
+      properties:
+        blood_glucose_value:
+          type: number
+          example: 22
+          description: Value of the blood glucose reading
+        prandial_tag_id:
+          type: string
+          example: PRANDIAL-TAG-BEFORE-BREAKFAST
+          description: Prandial tag for this reading
+        thresholds_mmoll:
+          description: Blood Glucose Banding Thresholds
+          allOf:
+          - $ref: '#/components/schemas/BloodGlucoseThresholds'
+      required:
+      - blood_glucose_value
+      - prandial_tag_id
+      - thresholds_mmoll
+      title: Blood Glucose Reading V2
+    BloodGlucoseBanding:
+      type: object
+      properties:
+        banding_id:
+          type: string
+          example: BG-READING-BANDING-NORMAL
+          description: Banding the reading fits into
+      title: Blood Glucose Banding
+    ObservationMetadata:
+      nullable: true
+      type: object
+      properties:
+        gcs_eyes:
+          type: integer
+          nullable: true
+        gcs_eyes_description:
+          type: string
+          nullable: true
+        gcs_verbal:
+          type: integer
+          nullable: true
+        gcs_verbal_description:
+          type: string
+          nullable: true
+        gcs_motor:
+          type: integer
+          nullable: true
+        gcs_motor_description:
+          type: string
+          nullable: true
+        mask:
+          type: string
+          nullable: true
+        mask_percent:
+          type: integer
+          nullable: true
+        patient_position:
+          type: string
+          nullable: true
+      title: Metadata associated with certain observations
+    Observation:
+      type: object
+      properties:
+        observation_type:
+          type: string
+        patient_refused:
+          type: boolean
+          nullable: true
+        observation_value:
+          type: number
+          nullable: true
+        observation_string:
+          type: string
+          nullable: true
+        observation_unit:
+          type: string
+          nullable: true
+        measured_time:
+          type: string
+        observation_metadata:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/ObservationMetadata'
+      required:
+      - measured_time
+      - observation_type
+      title: Unscored Observation
+    ObservationResponse:
+      type: object
+      properties:
+        observation_type:
+          type: string
+        patient_refused:
+          type: boolean
+          nullable: true
+        observation_value:
+          type: number
+          nullable: true
+        observation_string:
+          type: string
+          nullable: true
+        observation_unit:
+          type: string
+          nullable: true
+        measured_time:
+          type: string
+        observation_metadata:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/ObservationMetadata'
+        score_value:
+          type: integer
+      required:
+      - measured_time
+      - observation_type
+      - score_value
+      title: Scored Observation
+    UnscoredObservationSetSchema:
+      example:
+        record_time: '2017-09-23T08:31:19.123+00:00'
+        spo2_scale: 2
+        observations:
+        - observation_type: temperature
+          patient_refused: false
+          observation_value: 28.4
+          observation_string: ''
+          observation_unit: celsius
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: diastolic_blood_pressure
+          patient_refused: false
+          observation_value: 245.0
+          observation_string: ''
+          observation_unit: mmHg
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+          observation_metadata:
+            patient_position: sitting
+        - observation_type: systolic_blood_pressure
+          patient_refused: false
+          observation_value: 281.0
+          observation_string: ''
+          observation_unit: mmHg
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+          observation_metadata:
+            patient_position: sitting
+        - observation_type: heart_rate
+          patient_refused: false
+          observation_value: 160.0
+          observation_string: ''
+          observation_unit: bpm
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: respiratory_rate
+          patient_refused: false
+          observation_value: 55.0
+          observation_string: ''
+          observation_unit: bpm
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: o2_therapy_status
+          patient_refused: false
+          observation_value: 2.0
+          observation_unit: lpm
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+          observation_metadata:
+            mask: Venturi
+            mask_percent: 75
+        - observation_type: consciousness_acvpu
+          patient_refused: false
+          observation_string: Alert
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+          observation_metadata:
+            patient_position: sitting
+        - observation_type: nurse_concern
+          patient_refused: false
+          observation_string: Infection
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: spo2
+          patient_refused: false
+          observation_value: 55.0
+          observation_unit: '%'
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: consciousness_gcs
+          patient_refused: false
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+          observation_metadata:
+            gcs_eyes: 4
+            gcs_eyes_description: Spontaenous
+            gcs_verbal: 2
+            gcs_verbal_description: Oriented
+            gcs_motor: 3
+            gcs_motor_description: Commands
+        score_system: news2
+      type: object
+      properties:
+        record_time:
+          type: string
+        spo2_scale:
+          type: integer
+          nullable: true
+        observations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Observation'
+        score_system:
+          type: string
+      required:
+      - observations
+      - record_time
+      - score_system
+      title: Unscored Observation Set
+      additionalProperties: true
+    ScoredObservationSetSchema:
+      example:
+        score_system: news2
+        score_string: T
+        score_value: 12
+        score_severity: bad
+        record_time: '2017-09-23T08:31:19.123+00:00'
+        spo2_scale: 2
+        observations:
+        - observation_type: temperature
+          patient_refused: false
+          score_value: 5
+          observation_value: 28.4
+          observation_string: ''
+          observation_unit: celsius
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: diastolic_blood_pressure
+          patient_refused: false
+          score_value: 8
+          observation_value: 245
+          observation_string: ''
+          observation_unit: mmHg
+          observation_metadata:
+            patient_position: sitting
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: systolic_blood_pressure
+          patient_refused: false
+          score_value: 7
+          observation_value: 281
+          observation_string: ''
+          observation_unit: mmHg
+          observation_metadata:
+            patient_position: sitting
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: heart_rate
+          patient_refused: false
+          score_value: 3
+          observation_value: 160
+          observation_string: ''
+          observation_unit: bpm
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: respiratory_rate
+          patient_refused: false
+          score_value: 3
+          observation_value: 55
+          observation_string: ''
+          observation_unit: bpm
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: o2_therapy_status
+          patient_refused: false
+          score_value: 3
+          observation_value: 2
+          observation_metadata:
+            mask: Venturi
+            mask_percent: 75
+          observation_unit: lpm
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: consciousness_acvpu
+          patient_refused: false
+          score_value: 4
+          observation_string: Alert
+          observation_metadata:
+            patient_position: sitting
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: nurse_concern
+          patient_refused: false
+          score_value: 4
+          observation_string: Infection
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: spo2
+          patient_refused: false
+          score_value: 3
+          observation_value: 55
+          observation_unit: '%'
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        - observation_type: consciousness_gcs
+          patient_refused: false
+          score_value: 4
+          observation_metadata:
+            gcs_eyes: 4
+            gcs_eyes_description: Spontaenous
+            gcs_verbal: 2
+            gcs_verbal_description: Oriented
+            gcs_motor: 3
+            gcs_motor_description: Commands
+          measured_time: '2017-09-23T08:29:19.123+00:00'
+        encounter_id: e22f5175-6283-408d-9ba4-ea3b3a5354b8
+        is_partial: false
+        monitoring_instruction: low_medium_monitoring
+        empty_set: false
+        ranking: 0101010,2017-09-23T08:29:19.123+00:00
+        obx_reference_range: 0-4
+        obx_abnormal_flag: EXTHIGH
+      type: object
+      properties:
+        record_time:
+          type: string
+        spo2_scale:
+          type: integer
+          nullable: true
+        observations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObservationResponse'
+        score_system:
+          type: string
+        is_partial:
+          type: boolean
+        empty_set:
+          type: boolean
+          nullable: true
+        time_next_obs_set_due:
+          type: string
+        monitoring_instruction:
+          type: string
+        score_string:
+          type: string
+        score_value:
+          type: integer
+        score_severity:
+          type: string
+        ranking:
+          type: string
+        obx_reference_range:
+          type: string
+        obx_abnormal_flags:
+          type: string
+          description: N, HIGH, EXTHIGH
+      required:
+      - empty_set
+      - is_partial
+      - monitoring_instruction
+      - observations
+      - obx_abnormal_flags
+      - obx_reference_range
+      - ranking
+      - record_time
+      - score_severity
+      - score_string
+      - score_system
+      - score_value
+      - time_next_obs_set_due
+      title: Scored Observation Set
+      additionalProperties: true
+  responses:
+    BadRequest:
+      description: Bad or malformed request was received
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Service or dependent resource not available
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

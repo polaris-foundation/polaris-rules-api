@@ -1,0 +1,122 @@
+x-environment: &COMMON_ENVIRONMENT
+  ENVIRONMENT: DEVELOPMENT
+  ALLOW_DROP_DATA: "true"
+  PROXY_URL: http://localhost
+  HS_ISSUER: http://localhost/
+  HS_KEY: secret
+  REDIS_HOST: localhost
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: any
+  AUTH0_AUDIENCE: http://localhost/
+  AUTH0_CLIENT_ID: dummy
+  LOG_LEVEL: DEBUG
+  LOG_FORMAT: COLOUR
+  DHOS_TRUSTOMER_API_HOST: http://wiremock:8080/dhos-trustomer
+  CUSTOMER_CODE: inttests
+  POLARIS_API_KEY: inttestsecret
+  MOCK_TRUSTOMER_CONFIG: >-
+    {
+      "gdm_config": {
+        "blood_glucose_units": "mmol/L",
+        "blood_glucose_thresholds_mmoll": {
+          "BEFORE-BREAKFAST": { "high": 5.3, "low": 4.0 },
+          "OTHER": { "high": 7.8, "low": 4.0 },
+          "BEFORE-LUNCH": { "high": 6.0, "low": 4.0 },
+          "BEFORE-DINNER": { "high": 6.0, "low": 4.0 }
+        },
+        "graph_thresholds_mmoll": { "high": 7.8, "low": 4.0 }
+      },
+      "send_config": {
+        "news2": {
+          "zero_severity_interval_hours": 12,
+          "low_severity_interval_hours": 4,
+          "low_medium_severity_interval_hours": 1,
+          "medium_severity_interval_hours": 1,
+          "high_severity_interval_hours": 0,
+          "escalation_policy": {
+            "routine_monitoring": "<p>Continue routine NEWS monitoring</p>",
+            "low_monitoring": "<p>Inform registered nurse, who must assess the patient</p><p>Registered nurse decides whether increased frequency of monitoring and/or escalation of care is required</p>",
+            "low_medium_monitoring": "<p>Registered nurse to inform medical team caring for the patient, who will review and decide whether escalation of care is necessary</p>",
+            "medium_monitoring": "<p>Registered nurse to immediately inform the medical team caring for the patient</p><p>Registered nurse to request urgent assessment by a clinician or team with core competencies in the care of acutely ill patients</p><p>Provide clinical care in an environment with monitoring facilities</p>",
+            "high_monitoring": "<p>Registered nurse to immediately inform the medical team caring for the patient \\u2013 this should be at least at specialist registrar level</p><p>Emergency assessment by a team with critical care competencies, including practitioner(s) with advanced airway management skills</p><p>Consider transfer of care to a level 2 or 3 clinical care facility, ie higher-dependency unit or ICU</p><p>Clinical care in an environment with monitoring facilities</p>"
+          }
+        },
+        "meows": {
+          "zero_severity_interval_hours": 12,
+          "low_severity_interval_hours": 12,
+          "low_medium_severity_interval_hours": 6,
+          "medium_severity_interval_hours": 0.5,
+          "high_severity_interval_hours": 0.5,
+          "escalation_policy": {
+            "routine_monitoring": "<p>Continue routine MEOWS monitoring</p>",
+            "low_monitoring": "<p>Inform registered nurse, who must assess the patient</p><p>Registered nurse decides whether increased frequency of monitoring and/or escalation of care is required</p>",
+            "low_medium_monitoring": "<p>Registered nurse to inform medical team caring for the patient, who will review and decide whether escalation of care is necessary</p>",
+            "medium_monitoring": "<p>Registered nurse to immediately inform the medical team caring for the patient</p><p>Registered nurse to request urgent assessment by a clinician or team with core competencies in the care of acutely ill patients</p><p>Provide clinical care in an environment with monitoring facilities</p>",
+            "high_monitoring": "<p>Registered nurse to immediately inform the medical team caring for the patient – this should be at least at specialist registrar level</p><p>Emergency assessment by a team with critical care competencies, including practitioner(s) with advanced airway management skills</p><p>Consider transfer of care to a level 2 or 3 clinical care facility, ie higher-dependency unit or ICU</p><p>Clinical care in an environment with monitoring facilities</p>"
+          }
+        }
+      }
+    }
+
+services:
+  dhos-rules-integration-tests:
+    container_name: "dhos-rules-integration-tests"
+    build:
+      context: .
+      args:
+        - PIP_EXTRA_INDEX_URL
+    environment:
+      <<: *COMMON_ENVIRONMENT
+      BEHAVE_ARGS: ${BEHAVE_ARGS:-}
+      REPORT_PORTAL_URL: ${REPORT_PORTAL_URL:-}
+      REPORT_PORTAL_TOKEN: ${REPORT_PORTAL_TOKEN:-}
+      REPORT_PORTAL_PROJECT: ${REPORT_PORTAL_PROJECT:-}
+      ENVIRONMENT: ${ENVIRONMENT:-}
+      RELEASE: ${RELEASE:-}
+      SYSTEM_JWT_SCOPE: >-
+        read:gdm_rule read:send_rule
+    command: >
+      bash -c "behave --no-capture --no-logcapture ${BEHAVE_ARGS:-}"
+    depends_on:
+      "dhos-rules-api":
+        condition: service_healthy
+      "wiremock":
+        condition: service_healthy
+
+  dhos-rules-api:
+    container_name: "dhos-rules-api"
+    build:
+      context: ../
+      args:
+        - GEMFURY_DOWNLOAD_KEY
+    environment:
+      <<: *COMMON_ENVIRONMENT
+      DHOS_RULES_ENGINE_URL: http://dhos-rules-engine:3000
+    ports:
+      - "5000:5000"
+    command: >
+      bash -c "python -m dhos_rules_api"
+    healthcheck:
+      test: curl -f http://localhost:5000/running || false
+      interval: 3s
+      retries: 40
+      start_period: 10s
+    depends_on:
+      - dhos-rules-engine
+      - wiremock
+
+  dhos-rules-engine:
+    container_name: "dhos-rules-engine"
+    image: sensynehealth.azurecr.io/dhos/dhos-rules-engine:dev
+    ports:
+      - "3000"
+
+  wiremock:
+    container_name: "wiremock"
+    image: rodolpheche/wiremock:2.25.1
+    healthcheck:
+      test: "curl --location --request POST 'http://localhost:8080/__admin/mappings' || false"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s

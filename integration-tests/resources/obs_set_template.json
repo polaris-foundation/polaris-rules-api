@@ -1,0 +1,74 @@
+{
+  "encounter_id": "encounter-id",
+  "is_partial": false,
+  "observations": [
+    {
+      "measured_time": "2020-07-24T13:02:00.850Z",
+      "observation_metadata": {
+        "patient_position": "unspecified"
+      },
+      "observation_type": "systolic_blood_pressure",
+      "observation_unit": "mmHg",
+      "observation_value": null,
+      "patient_refused": false
+    },
+    {
+      "measured_time": "2020-07-24T13:02:00.850Z",
+      "observation_metadata": {
+        "patient_position": "unspecified"
+      },
+      "observation_type": "diastolic_blood_pressure",
+      "observation_unit": "mmHg",
+      "observation_value": null,
+      "patient_refused": false
+    },
+    {
+      "measured_time": "2020-07-24T13:02:13.925Z",
+      "observation_string": null,
+      "observation_type": "consciousness_acvpu",
+      "patient_refused": false
+    },
+    {
+      "measured_time": "2020-07-24T13:02:02.953Z",
+      "observation_type": "heart_rate",
+      "observation_unit": "bpm",
+      "observation_value": null,
+      "patient_refused": false
+    },
+    {
+      "measured_time": "2020-07-24T13:02:09.095Z",
+      "observation_type": "spo2",
+      "observation_unit": "percentage",
+      "observation_value": null,
+      "patient_refused": false
+    },
+    {
+      "measured_time": "2020-07-24T13:02:11.344Z",
+      "observation_metadata": {
+        "mask": null,
+        "mask_percent": null
+      },
+      "observation_type": "o2_therapy_status",
+      "observation_unit": "lpm",
+      "observation_value": null,
+      "patient_refused": false
+    },
+    {
+      "measured_time": "2020-07-24T13:02:05.451Z",
+      "observation_type": "respiratory_rate",
+      "observation_unit": "/min",
+      "observation_value": null,
+      "patient_refused": false
+    },
+    {
+      "measured_time": "2020-07-24T13:01:56.223Z",
+      "observation_type": "temperature",
+      "observation_unit": "celsius",
+      "observation_value": null,
+      "patient_refused": false
+    }
+  ],
+  "record_time": "2020-07-24T13:02:17.409Z",
+  "score_system": "invalid",
+  "spo2_scale": 1
+}
