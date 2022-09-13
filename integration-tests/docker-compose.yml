@@ -103,7 +103,7 @@ services:
 
   dhos-rules-engine:
     container_name: "dhos-rules-engine"
-    image: ghcr.io/polaris-foundation/polaris-rules-engine:dev
+    image: ghcr.io/polaris-foundation/polaris-rules-engine:latest
     ports:
       - "3000"
 
