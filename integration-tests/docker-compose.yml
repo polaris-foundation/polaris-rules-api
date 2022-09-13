@@ -63,8 +63,6 @@ services:
     container_name: "dhos-rules-integration-tests"
     build:
       context: .
-      args:
-        - PIP_EXTRA_INDEX_URL
     environment:
       <<: *COMMON_ENVIRONMENT
       BEHAVE_ARGS: ${BEHAVE_ARGS:-}
@@ -87,8 +85,6 @@ services:
     container_name: "dhos-rules-api"
     build:
       context: ../
-      args:
-        - GEMFURY_DOWNLOAD_KEY
     environment:
       <<: *COMMON_ENVIRONMENT
       DHOS_RULES_ENGINE_URL: http://dhos-rules-engine:3000
@@ -107,7 +103,7 @@ services:
 
   dhos-rules-engine:
     container_name: "dhos-rules-engine"
-    image: sensynehealth.azurecr.io/dhos/dhos-rules-engine:dev
+    image: ghcr.io/polaris-foundation/polaris-rules-engine:latest
     ports:
       - "3000"
 

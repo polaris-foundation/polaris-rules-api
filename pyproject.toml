@@ -1,14 +1,10 @@
 [tool.poetry]
 name = "dhos-rules-api"
 version = "0.0.1"
-description = "DHOS Rules API"
+description = "Polaris Rules API"
 authors = ["Jon Daly <jonathan.daly@sensynehealth.com>"]
 keywords = ["Swagger", "Rules"]
-repository = "https://github.com/draysontechnologies/dhos-rules-api"
-
-[[tool.poetry.source]]
-name = "sensynehealth"
-url = "https://pypi.fury.io/sensynehealth/"
+repository = "https://github.com/polaris-foundation/polaris-rules-api"
 
 [tool.poetry.dependencies]
 python = "^3.9"

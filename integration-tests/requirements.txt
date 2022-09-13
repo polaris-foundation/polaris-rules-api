@@ -9,4 +9,5 @@ reportportal-behave-client==1.*
 requests
 she_logging
 types-python-dateutil
+types-PyYAML
 types-requests
